@@ -1,0 +1,237 @@
+﻿using Microsoft.WindowsAzure.Storage;
+using Microsoft.WindowsAzure.Storage.Table;
+using Microsoft.WindowsAzure.Storage.Table.DataServices;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Security.Cryptography;
+using System.Text;
+using System.Threading.Tasks;
+using System.Xml.Linq;
+
+
+// https://docs.microsoft.com/en-us/azure/virtual-machines/windows/extensions-diagnostics-template
+// https://docs.microsoft.com/en-us/rest/api/storageservices/query-entities
+// https://docs.microsoft.com/en-us/rest/api/storageservices/querying-tables-and-entities
+// https://docs.microsoft.com/en-us/rest/api/storageservices/query-timeout-and-pagination
+// https://docs.microsoft.com/en-us/rest/api/storageservices/authentication-for-the-azure-storage-services
+
+
+namespace QueryDiagnosticLogs
+{
+    class Program
+    {
+        static string _storageAccountName = "vmdiagnosticstestdiag587";
+        static string _azTableName = "wadmetricspt1mp10dv2s20170907";
+
+        static string _storageServiceVersion = "2015-12-11";
+        static byte[] _storageAccountKey = Convert.FromBase64String("*****  STORAGE ACCOUNT KEY  ******");
+
+        static string[] perfCounterNames =
+        {
+            @"\Memory\Pool Nonpaged Bytes",
+            @"\Memory\Available Bytes",
+            @"\Memory\Cache Bytes",
+            @"\Memory\Committed Bytes",
+            @"\Memory\Page Faults/sec",
+            @"\Processor Information(_Total)\% Privileged Time",
+            @"\Processor Information(_Total)\% Processor Time",
+            @"\Processor Information(_Total)\% User Time",
+            @"\Processor Information(_Total)\Processor Frequency",
+            @"\LogicalDisk(_Total)\% Disk Read Time",
+            @"\LogicalDisk(_Total)\% Disk Write Time",
+            @"\LogicalDisk(_Total)\% Free Space",
+            @"\LogicalDisk(_Total)\% Idle Time",
+            @"\LogicalDisk(_Total)\Avg. Disk Queue Length",
+            @"\LogicalDisk(_Total)\Avg. Disk Read Queue Length",
+            @"\LogicalDisk(_Total)\Avg. Disk Write Queue Length",
+            @"\LogicalDisk(_Total)\Avg. Disk sec/Read",
+            @"\LogicalDisk(_Total)\Avg. Disk sec/Transfer",
+            @"\LogicalDisk(_Total)\Avg. Disk sec/Write",
+            @"\LogicalDisk(_Total)\Disk Bytes/sec",
+            @"\LogicalDisk(_Total)\Disk Read Bytes/sec",
+            @"\LogicalDisk(_Total)\Disk Reads/sec",
+            @"\LogicalDisk(_Total)\Disk Transfers/sec",
+            @"\LogicalDisk(_Total)\Disk Write Bytes/sec",
+            @"\LogicalDisk(_Total)\Disk Writes/sec",
+            @"\LogicalDisk(_Total)\Free Megabytes"
+        };
+
+        static void Main(string[] args)
+        {
+            Console.WriteLine("Query Azure Diagnostic Logs from Table storage\n");
+
+            Console.WriteLine("  A) To retrieve all rows for a specific VM");
+            Console.WriteLine("     Note that this will generate a lot of transactions");
+            Console.WriteLine("  B) To retrieve one Performance counter for a specific VM");
+            Console.WriteLine("  C) To retrieve all Performance counters (one by one) for a specific VM");
+            Console.WriteLine("     Note that this will generate a lot of transactions\n");
+            Console.WriteLine("==> Press A, B or C...");
+
+            // PartitionKey correspond to one specific VM
+            var partitionKey = ":002Fsubscriptions:002F9c7a8343:002D5f8f:002D463a:002Db994:002Dd81fc00090e5:002FresourceGroups:002FVMDiagnostics:002DTest:002Fproviders:002FMicrosoft:002ECompute:002FvirtualMachines:002FVMDiagnostic:002D1";
+
+            string request = string.Empty;
+
+            Stopwatch sw = null;
+            try
+            {
+                while (true)
+                {
+                    var keyPressed = Console.ReadKey().Key;
+                    if (keyPressed == ConsoleKey.A)
+                    {
+                        sw = Stopwatch.StartNew();
+                        sw.Start();
+                        // Get All rows for a specific VM
+                        request = String.Format(@"https://{0}.table.core.windows.net/{1}()?$filter=PartitionKey eq '{2}'", _storageAccountName, _azTableName, partitionKey);
+                        GetMetrics(request);
+                    }
+                    else if (keyPressed == ConsoleKey.B)
+                    {
+                        sw = Stopwatch.StartNew();
+                        sw.Start();
+
+                        string perfCounter = @"\Memory\Pool Nonpaged Bytes";
+                        request = String.Format(@"https://{0}.table.core.windows.net/{1}()?$filter=PartitionKey eq '{2}' and CounterName eq '{3}' and TIMESTAMP ge datetime'2016-12-06T05:00:00.791Z' ", _storageAccountName, _azTableName, partitionKey, perfCounter);
+                        //request = String.Format(@"https://{0}.table.core.windows.net/{1}()?$filter=PartitionKey eq '{2}' and CounterName eq '{3}' and TIMESTAMP ge datetime'2016-12-06T05:00:00.791Z' and (RowKey ge ':005') ", _accountName, _tableName, partitionKey, perfCounter);
+
+                        Console.WriteLine("---------------------------------------------------------------------");
+                        Console.WriteLine("{0} - Querying metrics for {1}", DateTime.UtcNow.ToString("u"), perfCounter);
+
+                        GetMetrics(request);
+                    }
+                    else if (keyPressed == ConsoleKey.C)
+                    {
+                        sw = Stopwatch.StartNew();
+                        sw.Start();
+                        foreach (string perfCounter in perfCounterNames)
+                        {
+                            Console.WriteLine("---------------------------------------------------------------------");
+                            Console.WriteLine("{0} - Querying metrics for {1}", DateTime.UtcNow.ToString("u"), perfCounter);
+
+                            request = String.Format(@"https://{0}.table.core.windows.net/{1}()?$filter=PartitionKey eq '{2}' and CounterName eq '{3}' and TIMESTAMP ge datetime'2016-12-06T05:00:00.791Z' ", _storageAccountName, _azTableName, partitionKey, perfCounter);
+                            //request = String.Format(@"https://{0}.table.core.windows.net/{1}()?$filter=PartitionKey eq '{2}' and CounterName eq '{3}' and TIMESTAMP ge datetime'2016-12-06T05:00:00.791Z' and (RowKey ge ':005') ", _accountName, _tableName, partitionKey, perfCounter);
+
+                            GetMetrics(request);
+                        }
+                    }
+                    else
+                    {
+                        sw = Stopwatch.StartNew();
+                        sw.Start();
+                        Console.WriteLine("No choice, no query!");
+                    }
+                    break;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.ToString());
+            }
+
+            sw.Stop();
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine(string.Format(CultureInfo.CurrentCulture, "{0}  Total operation completed. Execution time (s) {1}", DateTime.UtcNow.ToString("u"), sw.Elapsed.TotalSeconds));
+            Console.ResetColor();
+
+            Console.WriteLine("Hit Enter to exit...");
+            Console.ReadLine();
+        }
+
+        public static void GetMetrics(string request)
+        {
+            Console.WriteLine("{0} - Sending Query...", DateTime.UtcNow.ToString("u"));
+            Stopwatch sw = Stopwatch.StartNew();
+            sw.Start();
+
+            int totalRows = SubmitQuery(request);
+
+            sw.Stop();
+            Console.WriteLine(string.Format("{0} --> Total Rows Returned: {1}", DateTime.UtcNow.ToString("u"), totalRows));
+            Console.WriteLine(string.Format(CultureInfo.CurrentCulture, "{0}  Operation completed. Execution time (s) {1}", DateTime.UtcNow.ToString("u"), sw.Elapsed.TotalSeconds));
+        }
+
+        public static int SubmitQuery(string url, string nextPartitionKey = null, string nextRowKey = null)
+        {
+            int rowsReturned = 0;
+
+            String urlPath = String.Format(@"{0}{1}{2}",
+                                            url,
+                                            string.IsNullOrEmpty(nextPartitionKey) ? string.Empty : string.Format("&NextPartitionKey={0}", nextPartitionKey),
+                                            string.IsNullOrEmpty(nextRowKey) ? string.Empty : string.Format("&NextRowKey={0}", nextRowKey));
+
+            //Console.WriteLine("{0}{1}", "\n\n", urlPath, "\n\n");
+            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(urlPath);
+
+            request.ContentLength = 0;
+            request.Headers.Add("x-ms-date", DateTime.UtcNow.ToString("R", CultureInfo.InvariantCulture));
+
+            var resource = request.RequestUri.PathAndQuery;
+            if (resource.Contains("?"))
+            {
+                resource = resource.Substring(0, resource.IndexOf("?"));
+            }
+
+            string stringToSign = string.Format("{0}\n/{1}{2}",
+                    request.Headers["x-ms-date"],
+                    _storageAccountName,
+                    resource
+                );
+
+            var hasher = new HMACSHA256(_storageAccountKey);
+
+            string signedSignature = Convert.ToBase64String(hasher.ComputeHash(Encoding.UTF8.GetBytes(stringToSign)));
+            string authorizationHeader = string.Format("{0} {1}:{2}", "SharedKeyLite", _storageAccountName, signedSignature);
+            request.Headers.Add("Authorization", authorizationHeader);
+
+            request.Headers.Add("x-ms-version", _storageServiceVersion);
+            request.Accept = "application/json;odata=minimalmetadata";
+            //request.Headers.Add("DataServiceVersion", "3.0;NetFx");
+            //request.Headers.Add("MaxDataServiceVersion", "3.0;NetFx");
+
+            HttpWebResponse response = (HttpWebResponse)request.GetResponse();
+
+            if (response.StatusCode == HttpStatusCode.OK)
+            {
+                using (var reader = new StreamReader(response.GetResponseStream()))
+                {
+                    String responseFromServer = reader.ReadToEnd();
+                    //string jSonString = JToken.Parse(responseFromServer).ToString();
+                    //Console.WriteLine(jSonString);
+
+                    var test = JObject.Parse(responseFromServer);
+
+                    // How many rows were returned ?
+                    JArray items = (JArray)test["value"];
+                    int rowCount = items.Count;
+
+                    rowsReturned += rowCount;
+                }
+
+                // Find out if the request returned more than 1000 rows
+                if (response.Headers["x-ms-continuation-NextPartitionKey"] != null ||
+                    response.Headers["x-ms-continuation-NextRowKey"] != null)
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("{0} --> Query returned more than the maximum number of rows (1000)", DateTime.UtcNow.ToString("u"));
+                    Console.ResetColor();
+                    Console.WriteLine("{0} --> Querying next page...", DateTime.UtcNow.ToString("u"));
+                    //Console.WriteLine("Need to Query again adding NextRowKey={0}", response.Headers["x-ms-continuation-NextRowKey"]);
+                    //Console.WriteLine("Need to Query again adding NextPartitionKey={0}&NextRowKey={1}", response.Headers["x-ms-continuation-NextPartitionKey"], response.Headers["x-ms-continuation-NextRowKey"]);
+
+                    // Get the next result page
+                    rowsReturned += SubmitQuery(url, response.Headers["x-ms-continuation-NextPartitionKey"], response.Headers["x-ms-continuation-NextRowKey"]);
+                }
+            }
+
+            return rowsReturned;
+        }
+    }
+}
