@@ -40,100 +40,59 @@ namespace QueryDiagnosticLogs
             @"\Memory\Cache Bytes",
             @"\Memory\Committed Bytes",
             @"\Memory\Page Faults/sec",
-            @"\Processor Information(_Total)\% Privileged Time",
-            @"\Processor Information(_Total)\% Processor Time",
-            @"\Processor Information(_Total)\% User Time",
-            @"\Processor Information(_Total)\Processor Frequency",
-            @"\LogicalDisk(_Total)\% Disk Read Time",
-            @"\LogicalDisk(_Total)\% Disk Write Time",
-            @"\LogicalDisk(_Total)\% Free Space",
-            @"\LogicalDisk(_Total)\% Idle Time",
-            @"\LogicalDisk(_Total)\Avg. Disk Queue Length",
-            @"\LogicalDisk(_Total)\Avg. Disk Read Queue Length",
-            @"\LogicalDisk(_Total)\Avg. Disk Write Queue Length",
-            @"\LogicalDisk(_Total)\Avg. Disk sec/Read",
-            @"\LogicalDisk(_Total)\Avg. Disk sec/Transfer",
-            @"\LogicalDisk(_Total)\Avg. Disk sec/Write",
-            @"\LogicalDisk(_Total)\Disk Bytes/sec",
-            @"\LogicalDisk(_Total)\Disk Read Bytes/sec",
-            @"\LogicalDisk(_Total)\Disk Reads/sec",
-            @"\LogicalDisk(_Total)\Disk Transfers/sec",
-            @"\LogicalDisk(_Total)\Disk Write Bytes/sec",
-            @"\LogicalDisk(_Total)\Disk Writes/sec",
-            @"\LogicalDisk(_Total)\Free Megabytes"
+            //@"\Processor Information(_Total)\% Privileged Time",
+            //@"\Processor Information(_Total)\% Processor Time",
+            //@"\Processor Information(_Total)\% User Time",
+            //@"\Processor Information(_Total)\Processor Frequency",
+            //@"\LogicalDisk(_Total)\% Disk Read Time",
+            //@"\LogicalDisk(_Total)\% Disk Write Time",
+            //@"\LogicalDisk(_Total)\% Free Space",
+            //@"\LogicalDisk(_Total)\% Idle Time",
+            //@"\LogicalDisk(_Total)\Avg. Disk Queue Length",
+            //@"\LogicalDisk(_Total)\Avg. Disk Read Queue Length",
+            //@"\LogicalDisk(_Total)\Avg. Disk Write Queue Length",
+            //@"\LogicalDisk(_Total)\Avg. Disk sec/Read",
+            //@"\LogicalDisk(_Total)\Avg. Disk sec/Transfer",
+            //@"\LogicalDisk(_Total)\Avg. Disk sec/Write",
+            //@"\LogicalDisk(_Total)\Disk Bytes/sec",
+            //@"\LogicalDisk(_Total)\Disk Read Bytes/sec",
+            //@"\LogicalDisk(_Total)\Disk Reads/sec",
+            //@"\LogicalDisk(_Total)\Disk Transfers/sec",
+            //@"\LogicalDisk(_Total)\Disk Write Bytes/sec",
+            //@"\LogicalDisk(_Total)\Disk Writes/sec",
+            //@"\LogicalDisk(_Total)\Free Megabytes"
         };
 
         static void Main(string[] args)
         {
             Console.WriteLine("Query Azure Diagnostic Logs from Table storage\n");
 
-            Console.WriteLine("  A) To retrieve all rows for a specific VM");
-            Console.WriteLine("     Note that this will generate a lot of transactions");
-            Console.WriteLine("  B) To retrieve one Performance counter for a specific VM");
-            Console.WriteLine("  C) To retrieve all Performance counters (one by one) for a specific VM");
-            Console.WriteLine("     Note that this will generate a lot of transactions\n");
-            Console.WriteLine("==> Press A, B or C...");
-
             // PartitionKey correspond to one specific VM
             var partitionKey = ":002Fsubscriptions:002F9c7a8343:002D5f8f:002D463a:002Db994:002Dd81fc00090e5:002FresourceGroups:002FVMDiagnostics:002DTest:002Fproviders:002FMicrosoft:002ECompute:002FvirtualMachines:002FVMDiagnostic:002D1";
 
             string request = string.Empty;
 
-            Stopwatch sw = null;
+            Stopwatch sw = Stopwatch.StartNew();
+            sw.Start();
+
             try
             {
-                while (true)
-                {
-                    var keyPressed = Console.ReadKey().Key;
-                    if (keyPressed == ConsoleKey.A)
-                    {
-                        sw = Stopwatch.StartNew();
-                        sw.Start();
-                        // Get All rows for a specific VM
-                        request = String.Format(@"https://{0}.table.core.windows.net/{1}()?$filter=PartitionKey eq '{2}'", _storageAccountName, _azTableName, partitionKey);
-                        GetMetrics(request);
-                    }
-                    else if (keyPressed == ConsoleKey.B)
-                    {
-                        sw = Stopwatch.StartNew();
-                        sw.Start();
+                /*****************************************************************/
+                // Test #1, Retrieve one Performance counter for a specific VM
+                //          Using a filter in the query
+                //GetOnePerfCounter(partitionKey, true);
 
-                        string perfCounter = @"\Memory\Pool Nonpaged Bytes";
-                        request = String.Format(@"https://{0}.table.core.windows.net/{1}()?$filter=PartitionKey eq '{2}' and CounterName eq '{3}' and TIMESTAMP ge datetime'2016-12-06T05:00:00.791Z' ", _storageAccountName, _azTableName, partitionKey, perfCounter);
-                        //request = String.Format(@"https://{0}.table.core.windows.net/{1}()?$filter=PartitionKey eq '{2}' and CounterName eq '{3}' and TIMESTAMP ge datetime'2016-12-06T05:00:00.791Z' and (RowKey ge ':005') ", _accountName, _tableName, partitionKey, perfCounter);
+                // Test #2, Retrieve all Performance counters (one by one) for a specific VM
+                //     ==> Note that this will generate a lot of transactions
+                GetAllPerfCounter(partitionKey);
 
-                        Console.WriteLine("---------------------------------------------------------------------");
-                        Console.WriteLine("{0} - Querying metrics for {1}", DateTime.UtcNow.ToString("u"), perfCounter);
-
-                        GetMetrics(request);
-                    }
-                    else if (keyPressed == ConsoleKey.C)
-                    {
-                        sw = Stopwatch.StartNew();
-                        sw.Start();
-                        foreach (string perfCounter in perfCounterNames)
-                        {
-                            Console.WriteLine("---------------------------------------------------------------------");
-                            Console.WriteLine("{0} - Querying metrics for {1}", DateTime.UtcNow.ToString("u"), perfCounter);
-
-                            request = String.Format(@"https://{0}.table.core.windows.net/{1}()?$filter=PartitionKey eq '{2}' and CounterName eq '{3}' and TIMESTAMP ge datetime'2016-12-06T05:00:00.791Z' ", _storageAccountName, _azTableName, partitionKey, perfCounter);
-                            //request = String.Format(@"https://{0}.table.core.windows.net/{1}()?$filter=PartitionKey eq '{2}' and CounterName eq '{3}' and TIMESTAMP ge datetime'2016-12-06T05:00:00.791Z' and (RowKey ge ':005') ", _accountName, _tableName, partitionKey, perfCounter);
-
-                            GetMetrics(request);
-                        }
-                    }
-                    else
-                    {
-                        sw = Stopwatch.StartNew();
-                        sw.Start();
-                        Console.WriteLine("No choice, no query!");
-                    }
-                    break;
-                }
+                // Test #3, Retrieve all rows for a specific VM
+                //     ==> Note that this will generate a lot of transactions
+                //GetAllRowsForPartitionKey(partitionKey);
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.ToString());
+                Console.WriteLine(ex.ToString()); 
             }
 
             sw.Stop();
@@ -145,6 +104,50 @@ namespace QueryDiagnosticLogs
             Console.ReadLine();
         }
 
+        private static void GetOnePerfCounter(string partitionKey, bool useDatetime = true)
+        {
+            string perfCounter = @"\Memory\Pool Nonpaged Bytes";
+            string request = string.Empty;
+            if (useDatetime)
+            {
+                request = String.Format(@"https://{0}.table.core.windows.net/{1}()?$filter=PartitionKey eq '{2}' and CounterName eq '{3}' and (TIMESTAMP ge datetime'2017-09-12T15:30:00.000Z' and TIMESTAMP lt datetime'2017-09-12T16:00:00.000Z')", _storageAccountName, _azTableName, partitionKey, perfCounter);
+            }
+            else
+            {
+                request = String.Format(@"https://{0}.table.core.windows.net/{1}()?$filter=PartitionKey eq '{2}' and CounterName eq '{3}'", _storageAccountName, _azTableName, partitionKey, perfCounter);
+            }
+
+            GetMetrics(request);
+        }
+
+        private static void GetAllPerfCounter(string partitionKey, bool useDatetime = true)
+        {
+            string request = string.Empty;
+            foreach (string perfCounter in perfCounterNames)
+            {
+                Console.WriteLine("---------------------------------------------------------------------");
+                Console.WriteLine("{0} - Querying metrics for {1}", DateTime.UtcNow.ToString("u"), perfCounter);
+
+                if (useDatetime)
+                {
+                    request = String.Format(@"https://{0}.table.core.windows.net/{1}()?$filter=PartitionKey eq '{2}' and CounterName eq '{3}' and (TIMESTAMP ge datetime'2017-09-12T15:30:00.000Z' and TIMESTAMP lt datetime'2017-09-12T16:00:00.000Z')", _storageAccountName, _azTableName, partitionKey, perfCounter);
+                }
+                else
+                {
+                    request = String.Format(@"https://{0}.table.core.windows.net/{1}()?$filter=PartitionKey eq '{2}' and CounterName eq '{3}'", _storageAccountName, _azTableName, partitionKey, perfCounter);
+                }
+
+                GetMetrics(request);
+            }
+        }
+
+        private static void GetAllRowsForPartitionKey(string partitionKey)
+        {
+            string request = String.Format(@"https://{0}.table.core.windows.net/{1}()?$filter=PartitionKey eq '{2}'", _storageAccountName, _azTableName, partitionKey);
+
+            GetMetrics(request);
+        }
+
         public static void GetMetrics(string request)
         {
             Console.WriteLine("{0} - Sending Query...", DateTime.UtcNow.ToString("u"));
@@ -154,7 +157,7 @@ namespace QueryDiagnosticLogs
             int totalRows = SubmitQuery(request);
 
             sw.Stop();
-            Console.WriteLine(string.Format("{0} --> Total Rows Returned: {1}", DateTime.UtcNow.ToString("u"), totalRows));
+            Console.WriteLine(string.Format("{0}  Total Rows Returned: {1}", DateTime.UtcNow.ToString("u"), totalRows));
             Console.WriteLine(string.Format(CultureInfo.CurrentCulture, "{0}  Operation completed. Execution time (s) {1}", DateTime.UtcNow.ToString("u"), sw.Elapsed.TotalSeconds));
         }
 
@@ -210,9 +213,10 @@ namespace QueryDiagnosticLogs
 
                     // How many rows were returned ?
                     JArray items = (JArray)test["value"];
-                    int rowCount = items.Count;
-
-                    rowsReturned += rowCount;
+                    if (items != null)
+                        rowsReturned += items.Count;
+                    else
+                        rowsReturned += 1;
                 }
 
                 // Find out if the request returned more than 1000 rows
@@ -222,7 +226,7 @@ namespace QueryDiagnosticLogs
                     Console.ForegroundColor = ConsoleColor.Yellow;
                     Console.WriteLine("{0} --> Query returned more than the maximum number of rows (1000)", DateTime.UtcNow.ToString("u"));
                     Console.ResetColor();
-                    Console.WriteLine("{0} --> Querying next page...", DateTime.UtcNow.ToString("u"));
+                    Console.WriteLine("{0}     Querying next page...", DateTime.UtcNow.ToString("u"));
                     //Console.WriteLine("Need to Query again adding NextRowKey={0}", response.Headers["x-ms-continuation-NextRowKey"]);
                     //Console.WriteLine("Need to Query again adding NextPartitionKey={0}&NextRowKey={1}", response.Headers["x-ms-continuation-NextPartitionKey"], response.Headers["x-ms-continuation-NextRowKey"]);
 
@@ -232,6 +236,25 @@ namespace QueryDiagnosticLogs
             }
 
             return rowsReturned;
+        }
+
+        private static string BuildRowKey(string perfCounterName, DateTime date)
+        {
+            // RowKey is made of the CounterName and Max time ticks minus the time of the beginning of the aggregation period
+            //   Ex.: If the sample period started on 2017-09-13T13:14:00.000Z then the calculation would be: 
+            //        DateTime.MaxValue.Ticks - (new DateTime(2017, 09, 13, 13, 14, 0, 0, DateTimeKind.Utc).Ticks) = 2518969923599999999
+            // So for the following :
+            //   CounterName: "\LogicalDisk(_Total)\% Disk Write Time"   ==> Becomes ":005CLogicalDisk:0028:005FTotal:0029:005C:0025:0020Disk:0020Write:0020Time"
+            //   Sample TimeStamp: 2017-09-13T13:14:00.000Z
+            //var rowKey = "2518969923599999999__:005CLogicalDisk:0028:005FTotal:0029:005C:0025:0020Disk:0020Write:0020Time";
+            //              
+
+            var timestamp = DateTime.MaxValue.Ticks - date.Ticks;
+            var counter = @"\LogicalDisk(_Total)\% Disk Write Time";
+            var counterName = counter.Replace("\\", ":005C").Replace("(", ":0028").Replace("_", ":005F").Replace(")", ":0029").Replace("%", ":0025").Replace(" ", ":0020");
+            var rowKey = string.Format("{0}__{1}", timestamp, counterName);
+
+            return rowKey;
         }
     }
 }
