@@ -31,7 +31,7 @@ namespace QueryDiagnosticLogs
         static string _azTableName = "wadmetricspt1mp10dv2s20170907";
 
         static string _storageServiceVersion = "2015-12-11";
-        static byte[] _storageAccountKey = Convert.FromBase64String("xVX4k47PsnDWLrVTCy0MH6Y2tvLq34Yf1O8NbLuD0b7fIG7Vm8/GcfL4xJyftWGiX03nlYdcTEanpoRE9lfbLA==");
+        static byte[] _storageAccountKey = Convert.FromBase64String("*****  STORAGE ACCOUNT KEY  ******");
 
         static string[] perfCounterNames =
         {
@@ -68,7 +68,7 @@ namespace QueryDiagnosticLogs
             Console.WriteLine("Query Azure Diagnostic Logs from Table storage\n");
 
             // PartitionKey correspond to one specific VM
-            static byte[] _storageAccountKey = Convert.FromBase64String("*****  STORAGE ACCOUNT KEY  ******");
+            var partitionKey = ":002Fsubscriptions:002F9c7a8343:002D5f8f:002D463a:002Db994:002Dd81fc00090e5:002FresourceGroups:002FVMDiagnostics:002DTest:002Fproviders:002FMicrosoft:002ECompute:002FvirtualMachines:002FVMDiagnostic:002D1";
 
             string request = string.Empty;
 
