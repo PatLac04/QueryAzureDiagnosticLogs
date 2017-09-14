@@ -31,7 +31,7 @@ namespace QueryDiagnosticLogs
         static string _azTableName = "wadmetricspt1mp10dv2s20170907";
 
         static string _storageServiceVersion = "2015-12-11";
-        static byte[] _storageAccountKey = Convert.FromBase64String("*****  STORAGE ACCOUNT KEY  ******");
+        static byte[] _storageAccountKey = Convert.FromBase64String("xVX4k47PsnDWLrVTCy0MH6Y2tvLq34Yf1O8NbLuD0b7fIG7Vm8/GcfL4xJyftWGiX03nlYdcTEanpoRE9lfbLA==");
 
         static string[] perfCounterNames =
         {
@@ -68,7 +68,7 @@ namespace QueryDiagnosticLogs
             Console.WriteLine("Query Azure Diagnostic Logs from Table storage\n");
 
             // PartitionKey correspond to one specific VM
-            var partitionKey = ":002Fsubscriptions:002F9c7a8343:002D5f8f:002D463a:002Db994:002Dd81fc00090e5:002FresourceGroups:002FVMDiagnostics:002DTest:002Fproviders:002FMicrosoft:002ECompute:002FvirtualMachines:002FVMDiagnostic:002D1";
+            static byte[] _storageAccountKey = Convert.FromBase64String("*****  STORAGE ACCOUNT KEY  ******");
 
             string request = string.Empty;
 
@@ -80,11 +80,11 @@ namespace QueryDiagnosticLogs
                 /*****************************************************************/
                 // Test #1, Retrieve one Performance counter for a specific VM
                 //          Using a filter in the query
-                //GetOnePerfCounter(partitionKey, true);
+                GetOnePerfCounter(partitionKey, true);
 
                 // Test #2, Retrieve all Performance counters (one by one) for a specific VM
                 //     ==> Note that this will generate a lot of transactions
-                GetAllPerfCounter(partitionKey);
+                //GetAllPerfCounter(partitionKey);
 
                 // Test #3, Retrieve all rows for a specific VM
                 //     ==> Note that this will generate a lot of transactions
@@ -108,9 +108,10 @@ namespace QueryDiagnosticLogs
         {
             string perfCounter = @"\Memory\Pool Nonpaged Bytes";
             string request = string.Empty;
+
             if (useDatetime)
             {
-                request = String.Format(@"https://{0}.table.core.windows.net/{1}()?$filter=PartitionKey eq '{2}' and CounterName eq '{3}' and (TIMESTAMP ge datetime'2017-09-12T15:30:00.000Z' and TIMESTAMP lt datetime'2017-09-12T16:00:00.000Z')", _storageAccountName, _azTableName, partitionKey, perfCounter);
+                request = String.Format(@"https://{0}.table.core.windows.net/{1}()?$filter=PartitionKey eq '{2}' and CounterName eq '{3}' and (TIMESTAMP ge datetime'2017-09-12T15:00:00.000Z' and TIMESTAMP lt datetime'2017-09-12T16:00:00.000Z')", _storageAccountName, _azTableName, partitionKey, perfCounter);
             }
             else
             {
@@ -236,25 +237,6 @@ namespace QueryDiagnosticLogs
             }
 
             return rowsReturned;
-        }
-
-        private static string BuildRowKey(string perfCounterName, DateTime date)
-        {
-            // RowKey is made of the CounterName and Max time ticks minus the time of the beginning of the aggregation period
-            //   Ex.: If the sample period started on 2017-09-13T13:14:00.000Z then the calculation would be: 
-            //        DateTime.MaxValue.Ticks - (new DateTime(2017, 09, 13, 13, 14, 0, 0, DateTimeKind.Utc).Ticks) = 2518969923599999999
-            // So for the following :
-            //   CounterName: "\LogicalDisk(_Total)\% Disk Write Time"   ==> Becomes ":005CLogicalDisk:0028:005FTotal:0029:005C:0025:0020Disk:0020Write:0020Time"
-            //   Sample TimeStamp: 2017-09-13T13:14:00.000Z
-            //var rowKey = "2518969923599999999__:005CLogicalDisk:0028:005FTotal:0029:005C:0025:0020Disk:0020Write:0020Time";
-            //              
-
-            var timestamp = DateTime.MaxValue.Ticks - date.Ticks;
-            var counter = @"\LogicalDisk(_Total)\% Disk Write Time";
-            var counterName = counter.Replace("\\", ":005C").Replace("(", ":0028").Replace("_", ":005F").Replace(")", ":0029").Replace("%", ":0025").Replace(" ", ":0020");
-            var rowKey = string.Format("{0}__{1}", timestamp, counterName);
-
-            return rowKey;
         }
     }
 }
